@@ -1,106 +1,91 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { Dumbbell, FileText, Calendar, ArrowRight, History } from "lucide-react";
+import { motion } from "framer-motion";
+import { WorkoutPlan } from "@/types/workout";
 
-type WorkoutPlan = {
-  id: string;
-  title: string;
-  description: string;
-  pdf_url: string;
-  created_at: string;
-};
+type AssignedPlan = WorkoutPlan & { assigned_at?: string };
 
-export default function WorkoutsPage() {
-  const [workoutsPlans, setWorkoutsPlans] = useState<WorkoutPlan[]>([]);
+export default function ClientWorkoutsPage() {
+  const [plans, setPlans] = useState<AssignedPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadWorkoutsPlans();
-    async function loadWorkoutsPlans() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        if (!user) {
-          setLoading(false);
-          return;
-        }
+      const { data } = await supabase
+        .from("client_workouts")
+        .select("created_at, workout_plans(*)")
+        .eq("client_id", user.id);
 
-        const { data: assignments, error: assignmentError } = await supabase
-          .from("client_workouts")
-          .select("workout_id")
-          .eq("client_id", user.id);
-
-        if (assignmentError) {
-          console.error(assignmentError);
-          setLoading(false);
-          return;
-        }
-
-        if (!assignments || assignments.length === 0) {
-          setWorkoutsPlans([]);
-          setLoading(false);
-          return;
-        }
-
-        const workoutPlanIds = assignments.map((item) => item.workout_id);
-
-        const { data: plans, error: plansError } = await supabase
-          .from("workout_plans")
-          .select("*")
-          .in("id", workoutPlanIds);
-
-        if (plansError) {
-          console.error(plansError);
-          setLoading(false);
-          return;
-        }
-
-        setWorkoutsPlans(plans || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+      if (data) {
+        const mapped = data
+          .map((row) => {
+            const plan = Array.isArray(row.workout_plans) ? row.workout_plans[0] : row.workout_plans;
+            return plan ? { ...plan, assigned_at: row.created_at } : null;
+          })
+          .filter((p): p is AssignedPlan => p !== null && !p.archived);
+        setPlans(mapped);
       }
+      setLoading(false);
     }
+    load();
   }, []);
 
   if (loading) {
-    return <div className="text-white">Loading workout plans...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-10 w-56 rounded" />
+        <div className="grid sm:grid-cols-2 gap-4">{[1, 2].map(i => <div key={i} className="skeleton h-44 rounded-2xl" />)}</div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8 text-white">My Workout Plans</h1>
+    <div className="pb-8">
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+        <div>
+          <p className="section-label mb-2">Training</p>
+          <h1 className="text-3xl font-black">My Workout Plans</h1>
+          <p className="text-white/35 text-sm mt-1">Track every set, rep and rest day.</p>
+        </div>
+        <Link href="/dashboard/workouts/history" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/4 border border-white/8 hover:border-white/15 text-sm font-semibold text-white/60 hover:text-white transition">
+          <History size={15} /> Workout History
+        </Link>
+      </div>
 
-      {workoutsPlans.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <p className="text-zinc-400">No workout plans assigned yet.</p>
+      {plans.length === 0 ? (
+        <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-16 text-center">
+          <Dumbbell size={36} className="text-white/10 mx-auto mb-4" />
+          <h3 className="text-lg font-bold mb-2">No workout plan assigned yet</h3>
+          <p className="text-white/30 text-sm">Your coach will assign you a program soon. Check back here.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
-          {workoutsPlans.map((plan) => (
-            <div
-              key={plan.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
-            >
-              <h2 className="text-xl font-bold text-white mb-2">
-                {plan.title}
-              </h2>
-
-              <p className="text-zinc-400 mb-6">{plan.description}</p>
-
-              <a
-                href={plan.pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex bg-[#D4AF37] text-black px-5 py-3 rounded-xl font-semibold"
-              >
-                Open Workout Plan
-              </a>
-            </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {plans.map((plan, i) => (
+            <motion.div key={plan.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }}>
+              <Link href={`/dashboard/workouts/${plan.id}`}
+                className="block bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#D4AF37]/15 hover:border-[#D4AF37]/35 rounded-2xl p-6 transition-all duration-200 group">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-11 h-11 rounded-xl gold-gradient-bg flex items-center justify-center">
+                    <Dumbbell size={20} className="text-black" />
+                  </div>
+                  <ArrowRight size={16} className="text-white/20 group-hover:text-[#D4AF37] group-hover:translate-x-1 transition-all" />
+                </div>
+                <h2 className="font-bold text-lg mb-1">{plan.title}</h2>
+                {plan.goal && <p className="text-[#D4AF37] text-xs font-semibold mb-3">{plan.goal}</p>}
+                {plan.description && <p className="text-white/35 text-sm leading-relaxed mb-4 line-clamp-2">{plan.description}</p>}
+                <div className="flex items-center gap-3 text-xs text-white/30">
+                  {plan.duration_weeks && <span className="flex items-center gap-1"><Calendar size={11} /> {plan.duration_weeks} weeks</span>}
+                  {plan.pdf_url && <span className="flex items-center gap-1"><FileText size={11} /> PDF available</span>}
+                </div>
+              </Link>
+            </motion.div>
           ))}
         </div>
       )}

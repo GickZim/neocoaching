@@ -697,24 +697,34 @@ export default function ProfilePage() {
   // ── Avatar upload ───────────────────────────────────────────────────────────
   async function uploadAvatar(): Promise<string | null> {
     if (!avatarFile || !profile) return null;
-    setUploadingAvatar(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    console.log("Logged in user:", user);
+    console.log("Profile ID:", profile.id);
 
     const ext = avatarFile.name.split(".").pop();
     const path = `${profile.id}/avatar.${ext}`;
 
-    const { error } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from("avatars")
-      .upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
+      .upload(path, avatarFile, {
+        upsert: true,
+        contentType: avatarFile.type,
+      });
 
-    setUploadingAvatar(false);
+    console.log("UPLOAD DATA:", data);
+    console.log("UPLOAD ERROR:", error);
+
     if (error) {
-      showToast("error", "Failed to upload photo");
+      alert(error.message);
       return null;
     }
 
     return supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
   }
-
   // ── Save profile details ────────────────────────────────────────────────────
   async function handleSaveDetails() {
     if (!profile) return;

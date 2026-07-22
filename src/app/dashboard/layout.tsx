@@ -25,19 +25,31 @@ import {
 import { ToastProvider } from "@/components/ui/toast";
 
 const navItems = [
-  { href: "/dashboard",                 icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/checkins",        icon: ClipboardCheck,  label: "Check-ins" },
-  { href: "/dashboard/weight-trend",    icon: TrendingDown,    label: "Weight Trend" },
-  { href: "/dashboard/progress",        icon: Camera,          label: "Progress Photos" },
-  { href: "/dashboard/progress-history",icon: History,         label: "Progress History" },
-  { href: "/dashboard/workouts",        icon: Dumbbell,        label: "Workouts" },
-  { href: "/dashboard/mealplans",       icon: Utensils,        label: "Meal Plans" },
-  { href: "/dashboard/bmi",             icon: Calculator,      label: "BMI Calculator" },
-  { href: "/dashboard/tracker",         icon: Flame,           label: "Daily Tracker" },
-  { href: "/dashboard/profile",         icon: UserCircle,      label: "My Profile" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard/checkins", icon: ClipboardCheck, label: "Check-ins" },
+  {
+    href: "/dashboard/weight-trend",
+    icon: TrendingDown,
+    label: "Weight Trend",
+  },
+  { href: "/dashboard/progress", icon: Camera, label: "Progress Photos" },
+  {
+    href: "/dashboard/progress-history",
+    icon: History,
+    label: "Progress History",
+  },
+  { href: "/dashboard/workouts", icon: Dumbbell, label: "Workouts" },
+  { href: "/dashboard/mealplans", icon: Utensils, label: "Meal Plans" },
+  { href: "/dashboard/bmi", icon: Calculator, label: "BMI Calculator" },
+  { href: "/dashboard/tracker", icon: Flame, label: "Daily Tracker" },
+  { href: "/dashboard/profile", icon: UserCircle, label: "My Profile" },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,19 +59,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     async function checkAccess() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace("/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
       const role = await getCurrentUserRole();
-      if (role !== "client") { router.replace("/coach"); return; }
+      if (role !== "client") {
+        router.replace("/coach");
+        return;
+      }
 
-      // Load name + streak in parallel
+      // Load name + streak + expiry in parallel
       const [profileRes, trackingRes] = await Promise.all([
-        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-        supabase.from("daily_tracking").select("workout_completed,meal_plan_followed,tracking_date")
-          .eq("user_id", user.id).order("tracking_date", { ascending: false }).limit(30),
+        supabase
+          .from("profiles")
+          .select("full_name, access_expires_at")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("daily_tracking")
+          .select("workout_completed,meal_plan_followed,tracking_date")
+          .eq("user_id", user.id)
+          .order("tracking_date", { ascending: false })
+          .limit(30),
       ]);
 
-      if (profileRes.data) setClientName(profileRes.data.full_name || "");
+      if (profileRes.data) {
+        setClientName(profileRes.data.full_name || "");
+
+        // Expiry check — coach hasn't set a date = no restriction
+        const expiresAt = profileRes.data.access_expires_at;
+        if (expiresAt && new Date(expiresAt) < new Date()) {
+          router.replace("/account-expired");
+          return;
+        }
+      }
 
       if (trackingRes.data) {
         let s = 0;
@@ -77,7 +114,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     document.body.style.overflow = sidebarOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [sidebarOpen]);
 
   async function handleLogout() {
@@ -96,13 +135,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const initials = clientName ? clientName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "U";
+  const initials = clientName
+    ? clientName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "U";
 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="sidebar-overlay md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="sidebar-overlay md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Top header */}
@@ -118,12 +167,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Menu size={22} />
             </button>
             <Link href="/dashboard" className="flex items-center gap-2.5">
-              <Image src="/images/logo1.png" alt="NeoCoaching" width={36} height={36} className="rounded-lg" />
+              <Image
+                src="/images/logo1.png"
+                alt="NeoCoaching"
+                width={36}
+                height={36}
+                className="rounded-lg"
+              />
               <div className="hidden sm:block">
                 <p className="font-black text-base leading-tight">
                   <span className="text-[#D4AF37]">Neo</span>Coaching
                 </p>
-                <p className="text-[10px] text-white/30 leading-tight tracking-wider uppercase">Client Portal</p>
+                <p className="text-[10px] text-white/30 leading-tight tracking-wider uppercase">
+                  Client Portal
+                </p>
               </div>
             </Link>
           </div>
@@ -152,8 +209,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           {/* Mobile close */}
           <div className="md:hidden flex items-center justify-between px-4 py-4 border-b border-white/5">
-            <span className="text-sm font-semibold text-white/50 uppercase tracking-wider">Menu</span>
-            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-white/40 hover:text-white transition">
+            <span className="text-sm font-semibold text-white/50 uppercase tracking-wider">
+              Menu
+            </span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white transition"
+            >
               <X size={16} />
             </button>
           </div>
@@ -175,7 +237,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   <Icon size={16} className={active ? "text-[#D4AF37]" : ""} />
                   {label}
-                  {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />}
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                  )}
                 </Link>
               );
             })}
@@ -188,7 +252,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{clientName || "Client"}</p>
+                <p className="text-sm font-semibold text-white truncate">
+                  {clientName || "Client"}
+                </p>
                 <p className="text-xs text-white/30">Active Client</p>
               </div>
             </div>
@@ -204,9 +270,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main content */}
         <main className="w-full md:ml-64 pt-[68px] min-h-screen">
-          <div className="px-4 md:px-8 py-8">
-            {children}
-          </div>
+          <div className="px-4 md:px-8 py-8">{children}</div>
         </main>
       </div>
 

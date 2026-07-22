@@ -1,142 +1,135 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { showToast } from "@/components/ui/toast";
+import { MealPlan } from "@/types/meal";
 import AssignClientModal from "@/components/AssignClientModal";
+import { Plus, UtensilsCrossed, FileText, Users, Archive, Flame, Edit, MoreVertical } from "lucide-react";
+import { motion } from "framer-motion";
 
-type MealPlan = {
-  id: string;
-  title: string;
-  description: string;
-  pdf_url: string;
-  created_at: string;
-};
-
-export default function MealPlansPage() {
+export default function CoachMealPlansPage() {
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
+  const [assignModal, setAssignModal] = useState<{ open: boolean; planId: string }>({ open: false, planId: "" });
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState("");
+  useEffect(() => { load(); }, [showArchived]);
 
-  useEffect(() => {
-    loadPlans();
-    async function loadPlans() {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .select("*")
-        .order("created_at", { ascending: false });
-  
-      if (error) {
-        console.error(error);
-        setLoading(false);
-        return;
-      }
-  
-      setPlans(data || []);
-      setLoading(false);
-    }
-  }, []);
-
-
-  async function deletePlan(id: string) {
-    const confirmed = confirm(
-      "Are you sure you want to delete this meal plan?"
-    );
-
-    if (!confirmed) return;
-
-    const { error } = await supabase
-      .from("meal_plans")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setPlans((prev) => prev.filter((plan) => plan.id !== id));
-
-    alert("Meal plan deleted");
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase.from("meal_plans").select("*").eq("archived", showArchived).order("created_at", { ascending: false });
+    if (error) showToast(error.message, "error");
+    else setPlans(data || []);
+    setLoading(false);
   }
 
-  if (loading) {
-    return <div className="text-white">Loading meal plans...</div>;
+  async function archivePlan(id: string, archive: boolean) {
+    const { error } = await supabase.from("meal_plans").update({ archived: archive }).eq("id", id);
+    if (error) { showToast(error.message, "error"); return; }
+    showToast(archive ? "Plan archived." : "Plan restored.", "success");
+    load();
+  }
+
+  async function deletePlan(id: string) {
+    if (!confirm("Delete this plan permanently?")) return;
+    const { error } = await supabase.from("meal_plans").delete().eq("id", id);
+    if (error) { showToast(error.message, "error"); return; }
+    showToast("Plan deleted.", "success");
+    setPlans(p => p.filter(x => x.id !== id));
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white">
-          Meal Plan Library
-        </h1>
-
-        <p className="text-zinc-400 mt-2">
-          Manage all nutrition plans.
-        </p>
+    <div className="pb-16">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <p className="section-label mb-2">Coach Portal</p>
+          <h1 className="text-3xl font-black">Meal Plan Library</h1>
+          <p className="text-white/35 text-sm mt-1">Create, manage and assign nutrition plans.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowArchived(a => !a)}
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${showArchived ? "border-[#D4AF37]/40 text-[#D4AF37] bg-[#D4AF37]/8" : "border-white/8 text-white/50 hover:text-white"}`}>
+            <Archive size={14} className="inline mr-1.5" />{showArchived ? "Show Active" : "Archived"}
+          </button>
+          <Link href="/coach/mealplans/new" className="btn-gold flex items-center gap-2 text-sm px-5 py-2.5">
+            <Plus size={16} /> New Plan
+          </Link>
+        </div>
       </div>
 
-      {plans.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8">
-          <p className="text-zinc-400">
-            No meal plans uploaded yet.
-          </p>
+      {loading && <div className="grid lg:grid-cols-2 gap-4">{[1,2,3,4].map(i=><div key={i} className="skeleton h-52 rounded-2xl"/>)}</div>}
+
+      {!loading && plans.length === 0 && (
+        <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-16 text-center">
+          <UtensilsCrossed size={40} className="text-white/10 mx-auto mb-4"/>
+          <h3 className="text-lg font-bold mb-2">No meal plans yet</h3>
+          <p className="text-white/30 text-sm mb-6">Create your first nutrition plan to assign to clients.</p>
+          <Link href="/coach/mealplans/new" className="btn-gold inline-flex items-center gap-2 text-sm"><Plus size={15}/>Create First Plan</Link>
         </div>
-      ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6"
-            >
-              <h2 className="text-2xl font-bold text-white mb-2">
-                {plan.title}
-              </h2>
+      )}
 
-              <p className="text-zinc-400 mb-6">
-                {plan.description}
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href={plan.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-[#D4AF37] text-black px-5 py-2 rounded-xl font-semibold"
-                >
-                  Open PDF
-                </a>
-
-                <button
-                  onClick={() => deletePlan(plan.id)}
-                  className="bg-red-600 px-5 py-2 rounded-xl font-semibold text-white"
-                >
-                  Delete
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSelectedPlan(plan.id);
-                    setShowAssignModal(true);
-                  }}
-                  className="bg-zinc-800 text-white px-5 py-2 rounded-xl font-semibold"
-                >
-                  Assign Client
-                </button>
+      {!loading && plans.length > 0 && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          {plans.map((plan, i) => (
+            <motion.div key={plan.id} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:0.4,delay:i*0.06}}
+              className="bg-[#0a0a0a] border border-white/6 hover:border-[#D4AF37]/20 rounded-2xl p-6 transition-all duration-200 relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl gold-gradient-bg flex items-center justify-center shrink-0">
+                    <UtensilsCrossed size={18} className="text-black"/>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-white truncate">{plan.title}</h2>
+                    {plan.goal && <p className="text-[#D4AF37] text-xs mt-0.5">{plan.goal}</p>}
+                  </div>
+                </div>
+                <div className="relative shrink-0">
+                  <button onClick={() => setMenuOpen(menuOpen===plan.id?null:plan.id)} className="p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition">
+                    <MoreVertical size={16}/>
+                  </button>
+                  {menuOpen === plan.id && (
+                    <div className="absolute right-0 top-9 w-44 bg-[#111] border border-white/8 rounded-xl shadow-2xl z-20 overflow-hidden">
+                      {[
+                        {label:"Edit Plan", action:()=>{window.location.href=`/coach/mealplans/${plan.id}`;}},
+                        {label:"Assign Clients", action:()=>{setAssignModal({open:true,planId:plan.id});setMenuOpen(null);}},
+                        {label:plan.archived?"Restore":"Archive", action:()=>{archivePlan(plan.id,!plan.archived);setMenuOpen(null);}},
+                        {label:"Delete", action:()=>{deletePlan(plan.id);setMenuOpen(null);}, danger:true},
+                      ].map(({label,action,danger}:{label:string;action:()=>void;danger?:boolean})=>(
+                        <button key={label} onClick={action} className={`w-full text-left px-4 py-2.5 text-sm transition hover:bg-white/4 ${danger?"text-red-400":"text-white/70 hover:text-white"}`}>{label}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {plan.description && <p className="text-white/40 text-sm mb-4 line-clamp-2">{plan.description}</p>}
+
+              <div className="flex flex-wrap gap-2 mb-5">
+                {plan.calories && <span className="flex items-center gap-1.5 text-xs text-white/40 bg-white/4 border border-white/6 rounded-lg px-2.5 py-1.5"><Flame size={11}/>{plan.calories} kcal</span>}
+                {plan.protein_g && <span className="text-xs text-white/40 bg-white/4 border border-white/6 rounded-lg px-2.5 py-1.5">P: {plan.protein_g}g</span>}
+                {plan.pdf_url && <span className="flex items-center gap-1.5 text-xs text-white/40 bg-white/4 border border-white/6 rounded-lg px-2.5 py-1.5"><FileText size={11}/>PDF</span>}
+              </div>
+
+              <div className="flex gap-2">
+                <Link href={`/coach/mealplans/${plan.id}`} className="flex-1 text-center py-2.5 rounded-xl bg-white/4 border border-white/6 hover:border-white/12 text-sm font-semibold text-white/70 hover:text-white transition flex items-center justify-center gap-1.5">
+                  <Edit size={13}/> Edit
+                </Link>
+                <button onClick={()=>setAssignModal({open:true,planId:plan.id})} className="flex-1 btn-gold text-sm py-2.5 flex items-center justify-center gap-1.5">
+                  <Users size={14}/> Assign
+                </button>
+                {plan.pdf_url && <a href={plan.pdf_url} target="_blank" rel="noopener noreferrer" className="px-3 py-2.5 rounded-xl bg-white/4 border border-white/6 hover:border-white/12 text-white/50 hover:text-white transition"><FileText size={15}/></a>}
+              </div>
+            </motion.div>
           ))}
         </div>
       )}
 
-      <AssignClientModal
-        open={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        itemId={selectedPlan}
-        assignmentTable="client_meal_plans"
-        assignmentField="meal_plan_id"
-      />
+      <AssignClientModal open={assignModal.open} onClose={()=>setAssignModal({open:false,planId:""})}
+        itemId={assignModal.planId} assignmentTable="client_mealplans" assignmentField="mealplan_id"/>
+      {menuOpen && <div className="fixed inset-0 z-10" onClick={()=>setMenuOpen(null)}/>}
     </div>
   );
 }

@@ -15,6 +15,7 @@ type Profile = {
   target_weight: number;
   age: number;
   coach_notes: string;
+  access_expires_at: string | null;
 };
 
 type Checkin = {
@@ -59,6 +60,7 @@ export default function ClientProfilePage() {
   const [mealRate, setMealRate] = useState(0);
   const [avgWater, setAvgWater] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [expiresAt, setExpiresAt] = useState("");
 
   const [trackingDays, setTrackingDays] = useState<TrackingDay[]>([]);
 
@@ -138,6 +140,11 @@ export default function ClientProfilePage() {
       setPhotos(photoData || []);
       setCheckins(allCheckins || []);
       setNotes(profileData?.coach_notes || "");
+      setExpiresAt(
+        profileData?.access_expires_at
+          ? profileData.access_expires_at.slice(0, 10)
+          : "",
+      );
 
       setLoading(false);
     }
@@ -158,6 +165,30 @@ export default function ClientProfilePage() {
     } else {
       alert("Notes saved");
     }
+  }
+
+  async function saveExpiry() {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        access_expires_at: expiresAt
+          ? new Date(expiresAt + "T23:59:59").toISOString()
+          : null,
+        expiry_notified: false, // reset so they get a fresh reminder if you push the date out
+      })
+      .eq("id", clientId);
+
+    if (error) {
+      alert("Failed to save expiry date");
+    } else {
+      alert("Access period updated");
+    }
+  }
+
+  function extend30Days() {
+    const base = expiresAt ? new Date(expiresAt) : new Date();
+    base.setDate(base.getDate() + 30);
+    setExpiresAt(base.toISOString().slice(0, 10));
   }
 
   if (loading) {
@@ -195,7 +226,41 @@ export default function ClientProfilePage() {
               <p>Current Weight: {profile.current_weight || "-"} kg</p>
               <p>Target Weight: {profile.target_weight || "-"} kg</p>
             </div>
+
+            {/* Access Period editor */}
+            <div className="mt-4 pt-4 border-t border-zinc-800">
+              <p className="text-zinc-400 mb-2">Access Period</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="bg-zinc-800 rounded-xl px-4 py-2 text-white"
+                />
+                <button
+                  onClick={extend30Days}
+                  type="button"
+                  className="bg-zinc-800 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-zinc-700"
+                >
+                  +30 Days
+                </button>
+                <button
+                  onClick={saveExpiry}
+                  className="bg-[#D4AF37] text-black px-4 py-2 rounded-xl text-sm font-semibold"
+                >
+                  Save
+                </button>
+              </div>
+              {expiresAt && (
+                <p className="text-xs text-zinc-500 mt-2">
+                  {new Date(expiresAt) < new Date()
+                    ? "⚠️ Access has expired"
+                    : `Expires ${new Date(expiresAt).toLocaleDateString()}`}
+                </p>
+              )}
+            </div>
           </div>
+
           <div className="bg-zinc-900 rounded-2xl p-6">
             <h2 className="text-2xl font-bold mb-6">Adherence Analytics</h2>
 
