@@ -18,24 +18,65 @@ import {
   X,
   ChevronRight,
   Layers,
+  Megaphone,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ToastProvider } from "@/components/ui/toast";
 
 const menuItems = [
-  { name: "Dashboard",  href: "/coach",            icon: LayoutDashboard,  group: "Overview" },
-  { name: "Clients",    href: "/coach/clients",    icon: Users,            group: "Management" },
-  { name: "Applicants", href: "/coach/applicants", icon: Users,            group: "Management" },
-  { name: "Check-ins",  href: "/coach/checkins",   icon: ClipboardCheck,   group: "Management" },
-  { name: "Workouts",   href: "/coach/workouts",   icon: Dumbbell,         group: "Content" },
-  { name: "Meal Plans", href: "/coach/mealplans",  icon: UtensilsCrossed,  group: "Content" },
-  { name: "Programs",   href: "/coach/programs",   icon: Layers,           group: "Content" },
-  { name: "Pricing",    href: "/coach/pricing",    icon: BadgeDollarSign,  group: "Settings" },
+  {
+    name: "Dashboard",
+    href: "/coach",
+    icon: LayoutDashboard,
+    group: "Overview",
+  },
+  { name: "Clients", href: "/coach/clients", icon: Users, group: "Management" },
+  {
+    name: "Applicants",
+    href: "/coach/applicants",
+    icon: Users,
+    group: "Management",
+  },
+  {
+    name: "Broadcasts",
+    href: "/coach/broadcasts",
+    icon: Megaphone,
+    group: "Marketing",
+  },
+  {
+    name: "Check-ins",
+    href: "/coach/checkins",
+    icon: ClipboardCheck,
+    group: "Management",
+  },
+  {
+    name: "Workouts",
+    href: "/coach/workouts",
+    icon: Dumbbell,
+    group: "Content",
+  },
+  {
+    name: "Meal Plans",
+    href: "/coach/mealplans",
+    icon: UtensilsCrossed,
+    group: "Content",
+  },
+  { name: "Programs", href: "/coach/programs", icon: Layers, group: "Content" },
+  {
+    name: "Pricing",
+    href: "/coach/pricing",
+    icon: BadgeDollarSign,
+    group: "Settings",
+  },
 ];
 
-const groups = ["Overview", "Management", "Content", "Settings"];
+const groups = ["Overview", "Management", "Content", "Marketing", "Settings"];
 
-export default function CoachLayout({ children }: { children: React.ReactNode }) {
+export default function CoachLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { checking } = useRequireRole("coach");
@@ -63,7 +104,10 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="sidebar-overlay md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="sidebar-overlay md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Header */}
@@ -79,12 +123,20 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
               <Menu size={22} />
             </button>
             <Link href="/coach" className="flex items-center gap-2.5">
-              <Image src="/images/logo1.png" alt="Neo Coaching" width={36} height={36} className="rounded-lg" />
+              <Image
+                src="/images/logo1.png"
+                alt="Neo Coaching"
+                width={36}
+                height={36}
+                className="rounded-lg"
+              />
               <div className="hidden sm:block">
                 <p className="font-black text-base leading-tight">
                   <span className="text-[#D4AF37]">Neo</span>Coaching
                 </p>
-                <p className="text-[10px] text-white/30 leading-tight tracking-wider uppercase">Coach Portal</p>
+                <p className="text-[10px] text-white/30 leading-tight tracking-wider uppercase">
+                  Coach Portal
+                </p>
               </div>
             </Link>
           </div>
@@ -112,8 +164,13 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
         >
           {/* Mobile close */}
           <div className="md:hidden flex items-center justify-between px-4 py-4 border-b border-white/5">
-            <span className="text-sm font-semibold text-white/40 uppercase tracking-wider">Navigation</span>
-            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-white/40 hover:text-white transition">
+            <span className="text-sm font-semibold text-white/40 uppercase tracking-wider">
+              Navigation
+            </span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white transition"
+            >
               <X size={16} />
             </button>
           </div>
@@ -125,10 +182,14 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
               if (!items.length) return null;
               return (
                 <div key={group} className="mb-4">
-                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-1.5">{group}</p>
+                  <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest px-3 mb-1.5">
+                    {group}
+                  </p>
                   <div className="space-y-0.5">
                     {items.map(({ name, href, icon: Icon }) => {
-                      const active = pathname === href || (href !== "/coach" && pathname.startsWith(href));
+                      const active =
+                        pathname === href ||
+                        (href !== "/coach" && pathname.startsWith(href));
                       return (
                         <Link
                           key={name}
@@ -140,12 +201,19 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
                               : "text-white/45 hover:text-white hover:bg-white/4"
                           }`}
                         >
-                          <Icon size={16} className={active ? "text-[#D4AF37]" : ""} />
+                          <Icon
+                            size={16}
+                            className={active ? "text-[#D4AF37]" : ""}
+                          />
                           <span className="flex-1">{name}</span>
-                          {active
-                            ? <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
-                            : <ChevronRight size={12} className="opacity-0 group-hover:opacity-30 transition" />
-                          }
+                          {active ? (
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                          ) : (
+                            <ChevronRight
+                              size={12}
+                              className="opacity-0 group-hover:opacity-30 transition"
+                            />
+                          )}
                         </Link>
                       );
                     })}
@@ -169,9 +237,7 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
 
         {/* Main content */}
         <main className="w-full md:ml-64 pt-[68px] min-h-screen">
-          <div className="px-4 md:px-8 py-8">
-            {children}
-          </div>
+          <div className="px-4 md:px-8 py-8">{children}</div>
         </main>
       </div>
     </div>

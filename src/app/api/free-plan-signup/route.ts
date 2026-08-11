@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // Send email via Resend — don't block the response on this failing
     try {
       await resend.emails.send({
-        from: "Neo Coaching <onboarding@resend.dev>",
+        from: "Neo Coaching <noreply@neocoaching.online>",
         to: email,
         subject: `Your Free ${CATEGORY_LABELS[category]} Plan`,
         html: `
